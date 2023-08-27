@@ -1,34 +1,37 @@
-import { Component } from 'react';
+import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
-import cl from "./Modal.module.css"
+import cl from "./Modal.module.css";
+import { useEffect } from 'react';
 
 const modalRoot = document.querySelector('#modal-root');
 
-export default class Modal extends Component {
-  componentDidMount() {
-    window.addEventListener('keydown', this.modalKeyDown);
-  }
+export default function Modal ({selectedImage, tags, onClose}) {
 
-  componentWillUnmount() {
-    window.removeEventListener('keydown', this.modalKeyDown);
-  }
 
-  modalKeyDown = e => {
+  useEffect(() => {
+    window.addEventListener('keydown', modalKeyDown);
+  
+    return () => 
+      window.removeEventListener('keydown', modalKeyDown);
+    
+  })
+  
+
+
+  const modalKeyDown = e => {
     if (e.code === 'Escape') {
-      this.props.onClose();
+      onClose();
     }
   };
 
-  modalBackdropClick = e => {
+  const modalBackdropClick = e => {
     if (e.target === e.currentTarget) {
-      this.props.onClose();
+      onClose();
     }
   };
-  render() {
-    const { selectedImage, tags } = this.props;
 
     return createPortal(
-      <div className={cl.backdrop} onClick={this.modalBackdropClick}>
+      <div className={cl.backdrop} onClick={modalBackdropClick}>
         <div>
           <img className={cl.image} src={selectedImage} alt={tags} />
         </div>
@@ -36,4 +39,9 @@ export default class Modal extends Component {
       modalRoot
     );
   }
-}
+
+  Modal.propTypes = {
+    selectedImg: PropTypes.string,
+    tags: PropTypes.string,
+    onClose: PropTypes.func,
+  };

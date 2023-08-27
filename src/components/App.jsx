@@ -1,4 +1,4 @@
-import { Component } from "react";
+import { useState, useEffect } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import { Zoom } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -11,28 +11,28 @@ import { getPhotos } from "api/photos";
 import Modal from "./Modal/"
 
 
-export class App extends Component {
+export function App () {
   
-  state = {
-    searchQuery: '',
-    images: [],
-    page: 1,
-    totalHits: null,
-    selectedImage: null,
-    alt: null,
-    status: 'idle',
-    error: null,
-  };
+  const [searchQuery, setSearchQuery] = useState('');
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [alt, setAlt] = useState(null);
+  const [status, setStatus] = useState('idle');
+  const [error, setError] = useState(null);
+  const [totalHits, setTotalHits] = useState(null);
   
 
-  async componentDidUpdate(_, prevState) {
-    const { page, searchQuery } = this.state;
-    if (prevState.searchQuery !== searchQuery || prevState.page !== page) {
-      this.setState({ status: 'pending' });
+  useEffect(() => {
+    if (!searchQuery) {
+      return;
+    }
 
+    async function fetchImages() {
+      setStatus('pending');
       try {
         const imageData = await getPhotos(searchQuery, page);
-        this.state.totalHits = imageData.total;
+        setTotalHits(imageData.total);
         const imagesHits = imageData.hits;
         if (!imagesHits.length) {
           toast.warning(
@@ -40,66 +40,59 @@ export class App extends Component {
             { transition: Zoom, position: 'top-center' }
           );
         }
-        this.setState(({ images }) => ({
-          images: [...images, ...imagesHits],
-          status: 'resolved',
-        }));
+        setImages(prevImg => [...prevImg, ...imagesHits]);
+        setStatus('resolved');
 
         if (page > 1) {
-          const CARD_HEIGHT = 300;
+          const CARD_HEIGHT = 300; // preview image height
           window.scrollBy({
             top: CARD_HEIGHT * 2,
             behavior: 'smooth',
           });
         }
       } catch (error) {
-        toast.error(`Sorry something went wrong. ${error.message}`);
-        this.setState({ status: 'rejected' });
+        setError(new Error(`Sorry something went wrong. ${error.message}`));
+        toast.error(`Sorry something went wrong.`);
+        setStatus('rejected');
       }
     }
-  }
-  handleFormSubmit = searchQuery => {
-    if (this.state.searchQuery === searchQuery) {
+    fetchImages();
+  }, [searchQuery, page]);
+
+  const handleFormSubmit = query => {
+    if (searchQuery === query) {
       return;
     }
-    this.resetState();
-    this.setState({ searchQuery });
+    resetState();
+    setSearchQuery(query);
   };
-  handleSelectedImage = (largeImageUrl, tags) => {
-    this.setState({
-      selectedImage: largeImageUrl,
-      alt: tags,
-    });
+  const handleSelectedImage = (largeImageUrl, tags) => {
+    setSelectedImage(largeImageUrl);
+    setAlt(tags);
   };
 
-  resetState = () => {
-    this.setState({
-      searchQuery: '',
-      page: 1,
-      images: [],
-      selectedImage: null,
-      alt: null,
-      status: 'idle',
-    });
+  const resetState = () => {
+    setSearchQuery('');
+    setPage(1);
+    setImages([]);
+    setSelectedImage(null);
+    setAlt(null);
+    setStatus('idle');
+    setTotalHits(null);
   };
 
-  loadMore = () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-    }));
+  const loadMore = () => {
+    setPage(prevPage => prevPage + 1);
   };
 
-  closeModal = () => {
-    this.setState({
-      selectedImage: null,
-    });
+  const closeModal = () => {
+    setSelectedImage(null);
   };
-  render() {
-    const { images, status, selectedImage, alt, error } = this.state;
+  
     return (
       <>
       
-        <SearchBar onSubmit={this.handleFormSubmit} />
+        <SearchBar onSubmit={handleFormSubmit} />
         <ToastContainer autoClose={3000} theme="colored" pauseOnHover />
         {status === 'pending' && <Loader />}
         {error && (
@@ -110,20 +103,19 @@ export class App extends Component {
         {images.length > 0 && (
           <ImageGallery
             images={images}
-            selectedImage={this.handleSelectedImage}
+            selectedImage={handleSelectedImage}
           />
         )}
-        {images.length > 0 && images.length !== this.state.totalHits && (
-          <LoadMoreButton onClick={this.loadMore} />
+        {images.length > 0 && images.length !== totalHits && (
+          <LoadMoreButton onClick={loadMore} />
         )}
         {selectedImage && (
           <Modal
             selectedImage={selectedImage}
             tags={alt}
-            onClose={this.closeModal}
+            onClose={closeModal}
           />
         )}
       </>
     );
   }
-};
